@@ -50,7 +50,7 @@ pub trait Inode: Send + Sync {
     }
 }
 
-/// Inode reference (Arc<dyn Inode>)
+/// Inode reference
 pub type InodeRef = Arc<dyn Inode>;
 
 /// Trait for filesystem
