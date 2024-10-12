@@ -1,6 +1,6 @@
 //! CNFS Virtual file system abstraction
 //!
-//! The virtual file system abstraction is written for CNSS Recruit 2024
+//! This virtual file system abstraction is written for CNSS Recruit 2024
 //!
 #![no_std]
 #![deny(missing_docs)]
