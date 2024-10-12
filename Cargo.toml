@@ -1,0 +1,18 @@
+[package]
+name = "cnfs"
+version = "0.1.0"
+authors = ["caozhanhao <cao2013zh@163.com>"]
+
+description = "A virtual file system for CNSS Recruit 2024"
+repository = "https://github.com/caozhanhao/cnfs"
+
+license = "MIT"
+keywords = ["vfs", "CNSS"]
+
+edition = "2021"
+
+[dependencies]
+bitflags = "2.6.0"
+fatfs = "0.3.6"
+lazy_static = "1.5.0"
+log = "0.4.22"
