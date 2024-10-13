@@ -1,8 +1,8 @@
-use std::env::current_dir;
 use lazy_static::lazy_static;
+use std::env::current_dir;
 use std::sync::Arc;
 
-use cnfs::{CNFSResult, Path, FileMode, mount, exists, remove, create_directory, open};
+use cnfs::{create_directory, exists, mount, open, remove, CNFSResult, FileMode, Path};
 
 mod adapter;
 use adapter::*;
@@ -60,7 +60,7 @@ fn test_file(path: &Path) -> CNFSResult
     Ok(())
 }
 
-lazy_static!{
+lazy_static! {
     pub static ref fat_fs: Arc<fatfs::FSWrapper>
     = Arc::new(fatfs::FSWrapper::new("tests/resources/fat_2.img".into()));
 }

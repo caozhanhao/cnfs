@@ -1,12 +1,12 @@
-use crate::{CNFSResult, InodeType};
+use crate::config::{OSINODE_PAGE_ENTRY_SIZE, OSINODE_PAGE_SIZE};
+use crate::sync::UPCell;
 use crate::vfs::fs::InodeRef;
+use crate::{CNFSResult, InodeType};
 use alloc::collections::BTreeMap;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::cmp::min;
 use core::option::Option;
-use crate::config::{OSINODE_PAGE_ENTRY_SIZE, OSINODE_PAGE_SIZE};
-use crate::sync::UPCell;
 
 struct Page
 {
@@ -17,7 +17,7 @@ struct Page
 impl Page {
     fn new() -> Self
     {
-        Self{
+        Self {
             dirty: false,
             data: Vec::with_capacity(OSINODE_PAGE_SIZE),
         }
@@ -63,11 +63,11 @@ pub(crate) struct VInode
 }
 
 pub type VInodeType = InodeType;
-pub(crate) struct  VInodeRef(pub(crate) Arc<UPCell<VInode>>);
+pub(crate) struct VInodeRef(pub(crate) Arc<UPCell<VInode>>);
 impl VInodeRef {
     pub(crate) fn new(fs_inode: InodeRef) -> Self
     {
-        Self(Arc::new(unsafe{UPCell::new(VInode::new(fs_inode))}))
+        Self(Arc::new(unsafe { UPCell::new(VInode::new(fs_inode)) }))
     }
 }
 
@@ -76,8 +76,9 @@ impl VInode
 {
     pub fn new(fs_inode: InodeRef) -> Self
     {
-        Self{
-            fs_inode, cache: BTreeMap::new()
+        Self {
+            fs_inode,
+            cache: BTreeMap::new(),
         }
     }
 
@@ -98,14 +99,13 @@ impl VInode
                         {
                             self.cache.remove(&curr_page);
                             return Ok(nread);
-                        }
-                        else {
+                        } else {
                             p
                         }
-                    },
+                    }
                 Err(err) => {
                     self.cache.remove(&curr_page);
-                    return if nread != 0 { Ok(nread) } else { Err(err) }
+                    return if nread != 0 { Ok(nread) } else { Err(err) };
                 }
             };
 
@@ -114,9 +114,7 @@ impl VInode
                 let end = page.data.len() - curr_page_offset + nread;
                 buffer[nread..end].copy_from_slice(&page.data[curr_page_offset..]);
                 nread += page.data.len() - curr_page_offset;
-            }
-            else
-            {
+            } else {
                 let end = buffer.len() - nread + curr_page_offset;
                 buffer[nread..].copy_from_slice(&page.data[curr_page_offset..end]);
                 nread += buffer.len() - nread;
@@ -124,8 +122,7 @@ impl VInode
             if nread < buffer.len() {
                 curr_page.next();
                 curr_page_offset = 0;
-            }
-            else { break; }
+            } else { break; }
         }
 
         Ok(buffer.iter().len())
@@ -143,17 +140,17 @@ impl VInode
             {
                 Ok(p) =>
                     {
-                        let min_page_size= min(OSINODE_PAGE_SIZE, buffer.len() - nwritten);
+                        let min_page_size = min(OSINODE_PAGE_SIZE, buffer.len() - nwritten);
                         if p.data.len() < min_page_size
                         {
                             p.data.resize(min_page_size, 0);
                         }
                         p.dirty = true;
                         p
-                    },
+                    }
                 Err(err) => {
                     self.cache.remove(&curr_page);
-                    return if nwritten != 0 { Ok(nwritten) } else { Err(err) }
+                    return if nwritten != 0 { Ok(nwritten) } else { Err(err) };
                 }
             };
 
@@ -162,9 +159,7 @@ impl VInode
                 let end = page.data.len() - curr_page_offset + nwritten;
                 page.data[curr_page_offset..].copy_from_slice(&buffer[nwritten..end]);
                 nwritten += page.data.len() - curr_page_offset;
-            }
-            else
-            {
+            } else {
                 let end = buffer.len() - nwritten + curr_page_offset;
                 page.data[curr_page_offset..end].copy_from_slice(&buffer[nwritten..]);
                 nwritten += buffer.len() - nwritten;
@@ -172,8 +167,7 @@ impl VInode
             if nwritten < buffer.len() {
                 curr_page.next();
                 curr_page_offset = 0;
-            }
-            else { break; }
+            } else { break; }
         }
 
         Ok(buffer.iter().len())

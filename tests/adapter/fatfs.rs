@@ -1,9 +1,9 @@
+use cnfs::{CNFSError::*, CNFSResult, FileSystem, Inode, InodeRef, InodeType};
 use std::cell::{RefCell, UnsafeCell};
-use std::io::{Read, Seek, Write};
 use std::io::SeekFrom::Start;
+use std::io::{Read, Seek, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
-use cnfs::{FileSystem, Inode, InodeType, InodeRef, CNFSResult, CNFSError::*};
 
 macro_rules! ecast {
     ($x: expr) => {$x.map_err(|e| FSInternal(format!("{e}")))};
@@ -13,12 +13,12 @@ macro_rules! ecast {
 pub struct FSWrapper
 {
     fs: fatfs::FileSystem<std::fs::File>,
-    root: UnsafeCell<Option<InodeRef>>
+    root: UnsafeCell<Option<InodeRef>>,
 }
 
 pub struct FileWrapper<'a>(RefCell<fatfs::File<'a, std::fs::File>>);
 
-pub struct DirWrapper<'a>(fatfs::Dir<'a,std::fs::File>);
+pub struct DirWrapper<'a>(fatfs::Dir<'a, std::fs::File>);
 
 impl FSWrapper
 {
@@ -30,14 +30,14 @@ impl FSWrapper
         let fatfs = fatfs::FileSystem::new(img_file, fatfs::FsOptions::new()).unwrap();
         Self {
             fs: fatfs,
-            root: UnsafeCell::new(None)
+            root: UnsafeCell::new(None),
         }
     }
 
     #[allow(dead_code)]
     pub fn init(&'static self)
     {
-        unsafe {*self.root.get() = Some(Arc::new(DirWrapper(self.fs.root_dir())))}
+        unsafe { *self.root.get() = Some(Arc::new(DirWrapper(self.fs.root_dir()))) }
     }
 }
 
@@ -65,7 +65,7 @@ impl Inode for DirWrapper<'static>
     fn lookup(&self, name: &str) -> CNFSResult<InodeRef> {
         if let Ok(file) = self.0.open_file(name) {
             Ok(Arc::new(FileWrapper(RefCell::new(file))))
-        } else if let Ok(dir) = self.0.open_dir(name){
+        } else if let Ok(dir) = self.0.open_dir(name) {
             Ok(Arc::new(DirWrapper(dir)))
         } else {
             Err(PathNotFound.into())

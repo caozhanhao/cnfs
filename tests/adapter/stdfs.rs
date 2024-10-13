@@ -1,9 +1,9 @@
-use std::fs::{File, read_dir, remove_file, remove_dir, create_dir, OpenOptions};
-use std::io::{Read, Seek, Write};
+use cnfs::{CNFSError::*, CNFSResult, FileSystem, Inode, InodeRef, InodeType};
+use std::fs::{create_dir, read_dir, remove_dir, remove_file, File, OpenOptions};
 use std::io::SeekFrom::Start;
+use std::io::{Read, Seek, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
-use cnfs::{FileSystem, Inode, InodeType, InodeRef, CNFSResult, CNFSError::*};
 
 macro_rules! ecast {
     ($x: expr) => {$x.map_err(|e| FSInternal(e.to_string()))};
@@ -54,7 +54,7 @@ impl Inode for FileWrapper
         ecast!(file.write(buffer))
     }
 
-    fn sync(&self) -> CNFSResult{
+    fn sync(&self) -> CNFSResult {
         Ok(())
     }
 }

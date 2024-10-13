@@ -4,13 +4,13 @@ use crate::error::CNFSResult;
 use crate::sync::UPCell;
 use crate::vfs::mnt::MNTPOINT_TABLE;
 use crate::vfs::path::Path;
+use crate::vfs::vinode::{VInode, VInodeRef, VInodeType};
 use alloc::collections::BTreeMap;
 use alloc::string::{String, ToString};
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::cell::{Ref, RefMut};
 use lazy_static::lazy_static;
-use crate::vfs::vinode::{VInode, VInodeRef, VInodeType};
 
 pub struct Dentry
 {
@@ -119,7 +119,7 @@ pub(crate) fn lookup_dentry(path: &Path) -> CNFSResult<Arc<Dentry>>
     loop {
         if *path == curr.path
         {
-            return if *curr.exist.shared_access() { Ok(curr) } else { Err(PathNotFound) }
+            return if *curr.exist.shared_access() { Ok(curr) } else { Err(PathNotFound) };
         }
         let name = path[curr.path.len()].to_string();
         match curr.clone().inode().lookup(name.as_str())

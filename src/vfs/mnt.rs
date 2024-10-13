@@ -11,7 +11,7 @@ use lazy_static::lazy_static;
 
 pub struct Mount
 {
-    pub(crate) fs: Arc<dyn FileSystem>
+    pub(crate) fs: Arc<dyn FileSystem>,
 }
 
 lazy_static! {

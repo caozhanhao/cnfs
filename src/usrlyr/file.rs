@@ -134,13 +134,12 @@ impl File
                     nread += bytes;
                     if nread <= dest.len() {
                         dest.truncate(nread);
-                        return Ok(())
-                    }
-                    else {
+                        return Ok(());
+                    } else {
                         dest.resize(nread + 512, 0);
                     }
                 }
-                Err(err) => {return Err(err);}
+                Err(err) => { return Err(err); }
             }
         }
     }
@@ -163,7 +162,7 @@ impl File
             while written < self.buffer.len()
             {
                 written += self.dentry.inode_mut().write(self.offset,
-                                                   &self.buffer[written..])?;
+                                                         &self.buffer[written..])?;
                 self.offset += written as u64;
             }
         }

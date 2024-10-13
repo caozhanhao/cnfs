@@ -1,8 +1,8 @@
-use alloc::vec::Vec;
 use crate::error::CNFSError::PathNotFound;
 use crate::error::CNFSResult;
 use crate::usrlyr::{File, FileMode};
 use crate::vfs::*;
+use alloc::vec::Vec;
 
 /// Opens a file at path with the given mode.
 pub fn open(path: &Path, mode: FileMode) -> CNFSResult<File>
