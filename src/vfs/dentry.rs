@@ -2,26 +2,38 @@ use crate::config::DCACHE_SIZE;
 use crate::error::CNFSError::{InvalidPath, PathNotFound};
 use crate::error::CNFSResult;
 use crate::sync::UPCell;
-use crate::vfs::fs::{InodeRef, InodeType};
 use crate::vfs::mnt::MNTPOINT_TABLE;
 use crate::vfs::path::Path;
 use alloc::collections::BTreeMap;
 use alloc::string::{String, ToString};
 use alloc::sync::Arc;
 use alloc::vec::Vec;
+use core::cell::{Ref, RefMut};
 use lazy_static::lazy_static;
+use crate::vfs::vinode::{VInode, VInodeRef, VInodeType};
 
 pub struct Dentry
 {
     pub path: Path,
-    pub inode: InodeRef,
+    pub inode: VInodeRef,
+    pub exist: UPCell<bool>,
 }
 
 impl Dentry
 {
-    pub fn new(path: Path, inode: InodeRef) -> Self
+    pub fn new(path: Path, inode: VInodeRef) -> Self
     {
-        Dentry { path, inode }
+        Dentry { path, inode, exist: unsafe { UPCell::new(true) } }
+    }
+
+    pub fn inode(&self) -> Ref<'_, VInode>
+    {
+        self.inode.0.shared_access()
+    }
+
+    pub fn inode_mut(&self) -> RefMut<'_, VInode>
+    {
+        self.inode.0.exclusive_access()
     }
 }
 
@@ -29,7 +41,7 @@ lazy_static! {
     pub static ref DCACHE: UPCell<BTreeMap<String, Vec<Arc<Dentry>>>> = unsafe{UPCell::new(BTreeMap::new())};
 }
 
-pub(crate) fn insert_cache(dentry: Arc<Dentry>)
+pub(crate) fn insert_dcache(dentry: Arc<Dentry>)
 {
     let mut dcache = DCACHE.exclusive_access();
     while dcache.len() >= DCACHE_SIZE
@@ -44,7 +56,7 @@ pub(crate) fn insert_cache(dentry: Arc<Dentry>)
     }
 }
 
-pub(crate) fn remove_cache(path: &Path)
+pub(crate) fn remove_dcache(path: &Path)
 {
     let mut dcache = DCACHE.exclusive_access();
     let cached = dcache.get_mut(path[path.len() - 1].as_str());
@@ -68,7 +80,8 @@ pub(crate) fn lookup_dentry(path: &Path) -> CNFSResult<Arc<Dentry>>
     {
         if let Some(mnt) = MNTPOINT_TABLE.shared_access().get(&curr)
         {
-            cached_dentry = Some(Arc::new(Dentry::new(curr, mnt.fs.root_inode())));
+            cached_dentry = Some(Arc::new(Dentry::new(curr,
+                                                      VInodeRef::new(mnt.fs.root_inode()))));
             break 'outer;
         } else if let Some(cached_vec) = cached
         {
@@ -93,8 +106,9 @@ pub(crate) fn lookup_dentry(path: &Path) -> CNFSResult<Arc<Dentry>>
         {
             if path.starts_with(mnt.0)
             {
-                search_parent = Some(Arc::new(Dentry::new(mnt.0.clone(), mnt.1.fs.root_inode())));
-                insert_cache(search_parent.clone().unwrap());
+                search_parent = Some(Arc::new(Dentry::new(mnt.0.clone(),
+                                                          VInodeRef::new(mnt.1.fs.root_inode()))));
+                insert_dcache(search_parent.clone().unwrap());
                 break;
             }
         }
@@ -105,38 +119,41 @@ pub(crate) fn lookup_dentry(path: &Path) -> CNFSResult<Arc<Dentry>>
     loop {
         if *path == curr.path
         {
-            return Ok(curr);
+            return if *curr.exist.shared_access() { Ok(curr) } else { Err(PathNotFound) }
         }
         let name = path[curr.path.len()].to_string();
-        match curr.inode.lookup(name.as_str())
+        match curr.clone().inode().lookup(name.as_str())
         {
             Ok(inode) => {
-                curr = Arc::new(Dentry::new(path[..curr.path.len() + 1].into(), inode));
-                insert_cache(curr.clone());
+                curr = Arc::new(Dentry::new(path[..curr.path.len() + 1].into(),
+                                            VInodeRef::new(inode)));
+                insert_dcache(curr.clone());
             }
             Err(_) => { return Err(PathNotFound); }
         }
     }
 }
 
-pub type DentryType = InodeType;
+pub type DentryType = VInodeType;
 
 /// Create a dentry
-pub(crate) fn create_dentry(path: &Path, inode_type: InodeType) -> CNFSResult<Arc<Dentry>>
+pub(crate) fn create_dentry(path: &Path, inode_type: DentryType) -> CNFSResult<Arc<Dentry>>
 {
     if path.len() == 0 { return Err(InvalidPath); }
-    let i = lookup_dentry(&path.parent().unwrap())?.inode
+    let i = lookup_dentry(&path.parent().unwrap())?.inode()
         .create(path[path.len() - 1].as_str(), inode_type)?;
-    let dentry = Arc::new(Dentry::new(path.clone(), i));
-    insert_cache(dentry.clone());
+    let dentry = Arc::new(Dentry::new(path.clone(),
+                                      VInodeRef::new(i)));
+    insert_dcache(dentry.clone());
     Ok(dentry)
 }
 
-/// Create a dentry
+/// Remove a dentry
 pub(crate) fn remove_dentry(path: &Path) -> CNFSResult
 {
-    if path.len() == 0 { return Err(InvalidPath); }
-    let dentry = lookup_dentry(&path.parent().unwrap())?;
-    remove_cache(&path);
-    dentry.inode.remove(path[path.len() - 1].as_str())
+    let dentry = lookup_dentry(&path)?;
+    *dentry.exist.exclusive_access() = false;
+    let parent_dentry = lookup_dentry(&path.parent().unwrap())?;
+    remove_dcache(&path);
+    parent_dentry.clone().inode().remove(path[path.len() - 1].as_str())
 }

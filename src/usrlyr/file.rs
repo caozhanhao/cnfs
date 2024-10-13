@@ -57,20 +57,20 @@ impl File
             self.sync()?;
         }
 
-        let mut written: usize = 0;
-        while src.len() - written > self.max_buffer_size
+        let mut nwritten: usize = 0;
+        while src.len() - nwritten > self.max_buffer_size
         {
             assert!(self.buffer.is_empty());
-            match self.dentry.inode.write(self.offset, &src[written..])
+            match self.dentry.inode_mut().write(self.offset, &src[nwritten..])
             {
                 Ok(bytes) => {
-                    written += bytes;
+                    nwritten += bytes;
                     self.offset += bytes as u64;
                 }
                 Err(err) => {
-                    if written != 0
+                    if nwritten != 0
                     {
-                        return Ok(written);
+                        return Ok(nwritten);
                     } else {
                         return Err(err);
                     }
@@ -78,7 +78,7 @@ impl File
             }
         }
 
-        self.buffer.extend_from_slice(&src[written..]);
+        self.buffer.extend_from_slice(&src[nwritten..]);
         Ok(src.len())
     }
 
@@ -96,7 +96,7 @@ impl File
 
             while nread < dest.len()
             {
-                match self.dentry.inode.read(self.offset, &mut dest[nread..])
+                match self.dentry.inode_mut().read(self.offset, &mut dest[nread..])
                 {
                     Ok(bytes) => {
                         if bytes > 0
@@ -122,6 +122,29 @@ impl File
         }
     }
 
+    /// Read all bytes until EOF in this source, placing them into `dest`.
+    pub fn read_to_end(&mut self, dest: &mut Vec<u8>) -> CNFSResult
+    {
+        dest.resize(256, 0);
+        let mut nread = 0;
+        loop {
+            match self.read(&mut dest[nread..])
+            {
+                Ok(bytes) => {
+                    nread += bytes;
+                    if nread <= dest.len() {
+                        dest.truncate(nread);
+                        return Ok(())
+                    }
+                    else {
+                        dest.resize(nread + 512, 0);
+                    }
+                }
+                Err(err) => {return Err(err);}
+            }
+        }
+    }
+
     /// Seek to an offset
     pub fn seek(&mut self, new_offset: u64) -> CNFSResult
     {
@@ -139,13 +162,13 @@ impl File
             let mut written: usize = 0;
             while written < self.buffer.len()
             {
-                written += self.dentry.inode.write(self.offset,
+                written += self.dentry.inode_mut().write(self.offset,
                                                    &self.buffer[written..])?;
                 self.offset += written as u64;
             }
         }
         self.buffer.clear();
-        self.dentry.inode.sync()
+        Ok(())
     }
 }
 
@@ -153,5 +176,9 @@ impl Drop for File
 {
     fn drop(&mut self) {
         self.sync().expect("Failed to write to file.");
+        if *self.dentry.exist.shared_access()
+        {
+            self.dentry.inode_mut().sync().expect("Failed to write to file.");
+        }
     }
 }

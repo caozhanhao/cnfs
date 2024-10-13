@@ -1,6 +1,6 @@
 use crate::error::CNFSResult;
 use crate::sync::UPCell;
-use crate::vfs::dentry::remove_cache;
+use crate::vfs::dentry::remove_dcache;
 use crate::vfs::fs::FileSystem;
 use crate::vfs::lookup_dentry;
 use crate::vfs::path::Path;
@@ -23,13 +23,12 @@ pub fn mount(fs: Arc<dyn FileSystem>, mnt_point: Path) -> CNFSResult
 {
     if mnt_point.to_string() != "/" {
         let dentry = lookup_dentry(&mnt_point)?;
-        remove_cache(&dentry.path);
+        remove_dcache(&dentry.path);
     }
-    let table = MNTPOINT_TABLE.shared_access();
+    let mut table = MNTPOINT_TABLE.exclusive_access();
     let already_mounted = table.get(&mnt_point);
     if already_mounted.is_some() { return Err(AlreadyMountedPath); }
-    drop(table);
-    MNTPOINT_TABLE.exclusive_access().insert(mnt_point.clone(), Mount { fs });
+    table.insert(mnt_point.clone(), Mount { fs });
     Ok(())
 }
 /// Mount the filesystem at the given path.

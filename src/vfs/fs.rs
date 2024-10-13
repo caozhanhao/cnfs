@@ -31,19 +31,19 @@ pub trait Inode: Send + Sync {
         Err(NotImplemented)
     }
 
-    /// Lookup a node with a given name
+    /// Lookup a inode with a given name
     fn lookup(&self, _name: &str) -> CNFSResult<InodeRef>
     {
         Err(NotImplemented)
     }
 
-    /// Create a new node with a given name
-    fn create(&self, _name: &str, _node_type: InodeType) -> CNFSResult<InodeRef>
+    /// Create a new inode with a given name
+    fn create(&self, _name: &str, _inode_type: InodeType) -> CNFSResult<InodeRef>
     {
         Err(NotImplemented)
     }
 
-    /// Remove a node with a given name
+    /// Remove an inode with a given name
     fn remove(&self, _name: &str) -> CNFSResult
     {
         Err(NotImplemented)

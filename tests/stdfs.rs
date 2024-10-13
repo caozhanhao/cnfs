@@ -1,4 +1,4 @@
-use cnfs::{create_directory, exists, mount, open, remove, umount, CNFSResult, FileMode, Path};
+use cnfs::{close, create_directory, exists, mount, open, read, read_to_end, remove, umount, write_all, CNFSResult, FileMode, Path};
 use std::env::current_dir;
 use std::fs::File;
 use std::io::Read;
@@ -41,15 +41,15 @@ fn stdfs_test() -> CNFSResult
         remove(&test_file)?;
     }
     assert!(!exists(&test_file)? && !std_file_path.exists());
-    let mut file = open(&test_file, FileMode::write)?;
 
     let data = "cnss{th1s_i5_my_vfs_t3st}";
     let mut dest = vec![0_u8; data.len()];
-    file.write_all(data.as_bytes())?;
-    file.sync()?;
 
-    file.seek(0)?;
-    assert_eq!(file.read(dest.as_mut_slice())?, dest.len());
+    write_all(&test_file, data.as_bytes())?;
+    read(&test_file, dest.as_mut_slice())?;
+    assert_eq!(dest, data.as_bytes());
+    dest = read_to_end(&test_file)?;
+    assert_eq!(dest.len(), data.len());
     assert_eq!(dest, data.as_bytes());
 
     dest.fill(0);
@@ -57,7 +57,7 @@ fn stdfs_test() -> CNFSResult
     assert_eq!(ret.unwrap(), dest.len());
     assert_eq!(dest, data.as_bytes());
 
-    file.seek(0)?;
+    let mut file = open(&test_file, FileMode::write)?;
     for _ in 0..10000
     {
         file.write_all(data.as_bytes())?;
@@ -65,12 +65,18 @@ fn stdfs_test() -> CNFSResult
 
     file.sync()?;
     file.seek(0)?;
-    let mut stdfile = File::open(std_file_path).unwrap();
     for _ in 0..10000
     {
         dest.fill(0);
         assert_eq!(file.read(dest.as_mut_slice())?, dest.len());
         assert_eq!(dest, data.as_bytes());
+    }
+
+    close(file);
+
+    let mut stdfile = File::open(std_file_path).unwrap();
+    for _ in 0..10000
+    {
         dest.fill(0);
         assert_eq!(stdfile.read(dest.as_mut_slice()).unwrap(), dest.len());
         assert_eq!(dest, data.as_bytes());
